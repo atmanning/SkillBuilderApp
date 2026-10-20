@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import * as dataService from '../lib/dataService'
 import { course, lessons } from '../data/sampleCourse'
+import { totalScore, missedQuestionCount } from '../lib/scoring'
 
 export default function TeacherDashboard() {
   const { user } = useAuth()
   const [roster, setRoster] = useState([])
   const [progress, setProgress] = useState([])
+  const [questionAttempts, setQuestionAttempts] = useState([])
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteStatus, setInviteStatus] = useState('')
 
@@ -18,6 +20,8 @@ export default function TeacherDashboard() {
     if (ids.length) {
       const p = await dataService.getProgressForRoster(ids)
       setProgress(p)
+      const qa = await dataService.getQuestionAttemptsForRoster(ids)
+      setQuestionAttempts(qa)
     }
   }
 
@@ -45,6 +49,10 @@ export default function TeacherDashboard() {
 
   function progressFor(studentId) {
     return progress.filter((p) => (p.studentId || p.student_id) === studentId)
+  }
+
+  function questionAttemptsFor(studentId) {
+    return questionAttempts.filter((a) => a.studentId === studentId)
   }
 
   return (
@@ -82,8 +90,10 @@ export default function TeacherDashboard() {
             <thead>
               <tr>
                 <th>Student</th>
+                <th>Score</th>
                 <th>Lessons started</th>
                 <th>Lessons mastered</th>
+                <th>Needs review</th>
               </tr>
             </thead>
             <tbody>
@@ -91,12 +101,15 @@ export default function TeacherDashboard() {
                 const sid = r.studentId || r.student_id
                 const sp = progressFor(sid)
                 const mastered = sp.filter((p) => p.status === 'mastered').length
+                const qa = questionAttemptsFor(sid)
                 const studentInfo = r.student || r.profiles
                 return (
                   <tr key={sid}>
                     <td>{studentInfo?.name || studentInfo?.email || sid}</td>
+                    <td>{totalScore(qa)} pts</td>
                     <td>{sp.length}</td>
                     <td>{mastered}</td>
+                    <td>{missedQuestionCount(qa)}</td>
                   </tr>
                 )
               })}

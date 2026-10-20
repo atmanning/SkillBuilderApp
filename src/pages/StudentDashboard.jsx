@@ -3,22 +3,28 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import * as dataService from '../lib/dataService'
 import { lessons } from '../data/sampleCourse'
+import { totalScore, missedQuestionCount } from '../lib/scoring'
 
 const TIER_ORDER = ['basic', 'intermediate', 'advanced']
 
 export default function StudentDashboard() {
   const { user } = useAuth()
   const [progress, setProgress] = useState([])
+  const [questionAttempts, setQuestionAttempts] = useState([])
   const recommendedTier = localStorage.getItem(`recommendedTier:${user.id}`) || null
 
   useEffect(() => {
     dataService.getProgressForStudent(user.id).then(setProgress)
+    dataService.getQuestionAttemptsForStudent(user.id).then(setQuestionAttempts)
   }, [user.id])
 
   function statusFor(lessonId) {
     const p = progress.find((p) => (p.lessonId || p.lesson_id) === lessonId)
     return p?.status || 'not_started'
   }
+
+  const score = totalScore(questionAttempts)
+  const needsReview = missedQuestionCount(questionAttempts)
 
   if (!recommendedTier) {
     return (
@@ -47,6 +53,19 @@ export default function StudentDashboard() {
           (retake assessment)
         </Link>
       </p>
+
+      <section className="card score-summary">
+        <div>
+          <span className="score-number">{score}</span>
+          <span className="muted"> points earned</span>
+        </div>
+        {needsReview > 0 && (
+          <p className="hint-text">
+            {needsReview} question{needsReview === 1 ? '' : 's'} could use another look --
+            revisit any lesson below to try them again.
+          </p>
+        )}
+      </section>
 
       {TIER_ORDER.map((tier) => (
         <section className="card" key={tier}>

@@ -5,6 +5,16 @@
 // `embedUrl` fields are where an external SQL tutorial/reference page would
 // be embedded (e.g. an iframe to a W3Schools-style lesson or your own
 // hosted material).
+//
+// Two question types are supported, both by lessons here and by custom
+// questions a teacher adds via the Test Bank:
+//   - 'multiple_choice' (the default if questionType is omitted): choices[]
+//     + correctIndex
+//   - 'fill_blank': acceptableAnswers[], a list of strings any of which
+//     counts as correct (matched case-insensitively, whitespace-normalized
+//     -- see src/lib/scoring.js for the exact matching rules)
+// Every question can optionally carry a `hint` shown to the student if
+// they don't get it right on the first try.
 
 export const course = {
   id: 'sql-fundamentals',
@@ -20,6 +30,7 @@ export const assessmentQuestions = [
   {
     id: 'a1',
     difficulty: 'basic',
+    questionType: 'multiple_choice',
     prompt: 'Which statement retrieves every column for every row in the Customers table?',
     choices: [
       'SELECT * FROM Customers;',
@@ -32,6 +43,7 @@ export const assessmentQuestions = [
   {
     id: 'a2',
     difficulty: 'intermediate',
+    questionType: 'multiple_choice',
     prompt: 'Which statement returns only the categories that contain more than 5 products?',
     choices: [
       'SELECT CategoryID, COUNT(*) FROM Products WHERE COUNT(*) > 5 GROUP BY CategoryID;',
@@ -44,6 +56,7 @@ export const assessmentQuestions = [
   {
     id: 'a3',
     difficulty: 'advanced',
+    questionType: 'multiple_choice',
     prompt:
       'Which statement returns each CustomerID along with their single most recent OrderDate using a correlated subquery?',
     choices: [
@@ -68,6 +81,7 @@ export const lessons = [
     questions: [
       {
         id: 'q-b1-1',
+        questionType: 'multiple_choice',
         prompt: 'Which statement returns all Products with a UnitPrice greater than 50?',
         choices: [
           'SELECT * FROM Products WHERE UnitPrice > 50;',
@@ -76,9 +90,11 @@ export const lessons = [
           'SELECT * FROM Products WHERE UnitPrice >< 50;',
         ],
         correctIndex: 0,
+        hint: 'You need a comparison operator for "greater than", and the row-filtering clause that comes before GROUP BY.',
       },
       {
         id: 'q-b1-2',
+        questionType: 'multiple_choice',
         prompt: 'Which statement returns each unique Country in the Customers table?',
         choices: [
           'SELECT UNIQUE Country FROM Customers;',
@@ -87,6 +103,15 @@ export const lessons = [
           'SELECT DIFFERENT Country FROM Customers;',
         ],
         correctIndex: 1,
+        hint: 'The keyword goes right after SELECT, before the column name.',
+      },
+      {
+        id: 'q-b1-3',
+        questionType: 'fill_blank',
+        prompt:
+          'Fill in the blank: to return only products where UnitsInStock is 0, you would write\nSELECT * FROM Products WHERE UnitsInStock ____ 0;',
+        acceptableAnswers: ['=', 'equals'],
+        hint: 'This is a simple equality check -- what single symbol means "is equal to" in SQL?',
       },
     ],
   },
@@ -98,6 +123,7 @@ export const lessons = [
     questions: [
       {
         id: 'q-i1-1',
+        questionType: 'multiple_choice',
         prompt:
           'Which statement returns the OrderID along with the CompanyName of the customer who placed each order?',
         choices: [
@@ -107,6 +133,15 @@ export const lessons = [
           'SELECT Orders.OrderID, Customers.CompanyName FROM Orders JOIN Customers WHERE CustomerID;',
         ],
         correctIndex: 1,
+        hint: 'The join condition should match each order to its customer -- which column do both tables share for that?',
+      },
+      {
+        id: 'q-i1-2',
+        questionType: 'fill_blank',
+        prompt:
+          'Fill in the missing keyword:\nSELECT CategoryID, COUNT(*) FROM Products ____ BY CategoryID;\n(returns the number of products in each category)',
+        acceptableAnswers: ['group', 'group by'],
+        hint: 'This clause comes before "BY" and tells SQL to bucket rows by a shared column value.',
       },
     ],
   },
@@ -118,6 +153,7 @@ export const lessons = [
     questions: [
       {
         id: 'q-a1-1',
+        questionType: 'multiple_choice',
         prompt:
           'Which statement returns Customers who have never placed an order, using a subquery against the Orders table?',
         choices: [
@@ -127,6 +163,15 @@ export const lessons = [
           'SELECT * FROM Customers, Orders WHERE Customers.CustomerID NOT IN Orders.CustomerID;',
         ],
         correctIndex: 1,
+        hint: 'You want customers whose ID is absent from the Orders subquery results -- which keyword means "absent from this list"?',
+      },
+      {
+        id: 'q-a1-2',
+        questionType: 'fill_blank',
+        prompt:
+          'Fill in the blank: a subquery that appears inside the parentheses of another query\'s WHERE clause, and which references a column from the outer query, is called a ____ subquery.',
+        acceptableAnswers: ['correlated'],
+        hint: "It's named for the fact that it correlates -- references a value from -- the outer query, rather than running independently.",
       },
     ],
   },

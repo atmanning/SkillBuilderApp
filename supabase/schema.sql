@@ -97,17 +97,34 @@ create policy "Authenticated users can read progress"
 -- ---------------------------------------------------------------------
 -- custom_questions: teacher-authored questions layered onto a lesson,
 -- merged with the built-in sample questions by
--- dataService.getQuestionsForLesson().
+-- dataService.getQuestionsForLesson(). Supports two question types (see
+-- the comment above addCustomQuestion() in src/lib/dataService.js):
+--   'multiple_choice' -> uses choices + correct_index
+--   'fill_blank'       -> uses acceptable_answers, choices/correct_index null
 -- ---------------------------------------------------------------------
 create table if not exists custom_questions (
   id uuid primary key default gen_random_uuid(),
   teacher_id uuid not null references profiles(id) on delete cascade,
   lesson_id text not null,
+  question_type text not null default 'multiple_choice'
+    check (question_type in ('multiple_choice', 'fill_blank')),
   prompt text not null,
-  choices jsonb not null,
-  correct_index integer not null,
+  hint text,
+  choices jsonb,
+  correct_index integer,
+  acceptable_answers jsonb,
   created_at timestamptz not null default now()
 );
+
+-- Idempotent upgrade path for a database created from an earlier version
+-- of this schema (back when custom_questions was multiple-choice only).
+-- Safe to run on a brand-new database too -- every statement below is a
+-- no-op if the column/constraint already matches.
+alter table custom_questions add column if not exists question_type text not null default 'multiple_choice';
+alter table custom_questions add column if not exists hint text;
+alter table custom_questions add column if not exists acceptable_answers jsonb;
+alter table custom_questions alter column choices drop not null;
+alter table custom_questions alter column correct_index drop not null;
 
 alter table custom_questions enable row level security;
 
@@ -118,4 +135,40 @@ create policy "Teachers manage their own custom questions"
 
 create policy "Authenticated users can read custom questions"
   on custom_questions for select
+  using (auth.role() = 'authenticated');
+
+
+-- ---------------------------------------------------------------------
+-- question_attempts: one row per (student, question), tracking points
+-- earned and whether the student's latest/best attempt was correct. This
+-- is the ledger behind the score shown on both the student dashboard and
+-- the teacher's roster, and behind the "needs review" list. question_id
+-- matches either a built-in question id from src/data/sampleCourse.js
+-- (e.g. 'q-b1-1') or a custom_questions.id (uuid) -- stored as text so
+-- both forms fit the same column.
+-- ---------------------------------------------------------------------
+create table if not exists question_attempts (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid not null references profiles(id) on delete cascade,
+  lesson_id text not null,
+  question_id text not null,
+  points integer not null default 0,
+  correct boolean not null default false,
+  attempts integer not null default 1,
+  updated_at timestamptz not null default now(),
+  unique (student_id, question_id)
+);
+
+alter table question_attempts enable row level security;
+
+create policy "Students manage their own question attempts"
+  on question_attempts for all
+  using (auth.uid() = student_id)
+  with check (auth.uid() = student_id);
+
+-- Teachers need to read scores for students on their roster. As with
+-- student_progress above, this starter policy is intentionally
+-- permissive; tighten it to join through `enrollments` for production.
+create policy "Authenticated users can read question attempts"
+  on question_attempts for select
   using (auth.role() = 'authenticated');

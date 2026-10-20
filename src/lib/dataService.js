@@ -21,6 +21,7 @@ const LS_KEYS = {
   progress: 'sb_mock_progress',
   customQuestions: 'sb_mock_custom_questions',
   enrollments: 'sb_mock_enrollments',
+  questionAttempts: 'sb_mock_question_attempts',
 }
 
 function readLS(key, fallback) {
@@ -249,15 +250,37 @@ export async function getProgressForRoster(studentIds) {
 // ---------------------------------------------------------------------
 // Custom question bank (teacher-authored questions layered onto lessons)
 // ---------------------------------------------------------------------
+//
+// Every question flowing through the app -- whether a built-in sample
+// question from sampleCourse.js or a teacher-authored one from here --
+// ends up in this shape:
+//   { id, questionType: 'multiple_choice' | 'fill_blank', prompt, hint?,
+//     choices?, correctIndex?,       // multiple_choice
+//     acceptableAnswers? }            // fill_blank
+// listCustomQuestions() below normalizes Supabase's snake_case columns
+// into this same camelCase shape, so QuestionCard.jsx never needs to care
+// which source a question came from.
 
-export async function addCustomQuestion({ teacherId, lessonId, prompt, choices, correctIndex }) {
+export async function addCustomQuestion({
+  teacherId,
+  lessonId,
+  questionType = 'multiple_choice',
+  prompt,
+  hint,
+  choices,
+  correctIndex,
+  acceptableAnswers,
+}) {
   if (isSupabaseConfigured) {
     const { error } = await supabase.from('custom_questions').insert({
       teacher_id: teacherId,
       lesson_id: lessonId,
+      question_type: questionType,
       prompt,
-      choices,
-      correct_index: correctIndex,
+      hint,
+      choices: choices ?? null,
+      correct_index: correctIndex ?? null,
+      acceptable_answers: acceptableAnswers ?? null,
     })
     if (error) throw error
     return
@@ -268,9 +291,12 @@ export async function addCustomQuestion({ teacherId, lessonId, prompt, choices, 
     id: crypto.randomUUID(),
     teacherId,
     lessonId,
+    questionType,
     prompt,
-    choices,
-    correctIndex,
+    hint,
+    choices: choices ?? null,
+    correctIndex: correctIndex ?? null,
+    acceptableAnswers: acceptableAnswers ?? null,
     createdAt: new Date().toISOString(),
   })
   writeLS(LS_KEYS.customQuestions, custom)
@@ -283,7 +309,15 @@ export async function listCustomQuestions(lessonId) {
       .select('*')
       .eq('lesson_id', lessonId)
     if (error) throw error
-    return data
+    return data.map((row) => ({
+      id: row.id,
+      questionType: row.question_type || 'multiple_choice',
+      prompt: row.prompt,
+      hint: row.hint,
+      choices: row.choices,
+      correctIndex: row.correct_index,
+      acceptableAnswers: row.acceptable_answers,
+    }))
   }
   const custom = readLS(LS_KEYS.customQuestions, [])
   return custom.filter((q) => q.lessonId === lessonId)
@@ -295,4 +329,107 @@ export async function getQuestionsForLesson(lessonId) {
   const base = sampleLessons.find((l) => l.id === lessonId)?.questions || []
   const custom = await listCustomQuestions(lessonId)
   return [...base, ...custom]
+}
+
+// ---------------------------------------------------------------------
+// Question-level scoring (the point ledger behind the score shown to
+// students and teachers, and behind the "needs review" list)
+// ---------------------------------------------------------------------
+//
+// One row per (studentId, questionId), upserted after each question is
+// finally resolved (answered correctly, or exhausted its attempts and
+// moved to the review queue -- see LessonPage.jsx). Points only ever go
+// up for a given question: if a student later retakes a lesson and does
+// better, we keep the higher score rather than overwriting it with a
+// worse one.
+
+export async function recordQuestionAttempt({ studentId, lessonId, questionId, points, correct }) {
+  if (isSupabaseConfigured) {
+    const { data: existing } = await supabase
+      .from('question_attempts')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('question_id', questionId)
+      .maybeSingle()
+
+    const nextPoints = Math.max(points, existing?.points || 0)
+    const nextAttempts = (existing?.attempts || 0) + 1
+
+    const { error } = await supabase.from('question_attempts').upsert(
+      {
+        student_id: studentId,
+        lesson_id: lessonId,
+        question_id: questionId,
+        points: nextPoints,
+        correct,
+        attempts: nextAttempts,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'student_id,question_id' }
+    )
+    if (error) throw error
+    return
+  }
+
+  const all = readLS(LS_KEYS.questionAttempts, [])
+  const existingIndex = all.findIndex(
+    (a) => a.studentId === studentId && a.questionId === questionId
+  )
+  const existing = existingIndex >= 0 ? all[existingIndex] : null
+  const record = {
+    studentId,
+    lessonId,
+    questionId,
+    points: Math.max(points, existing?.points || 0),
+    correct,
+    attempts: (existing?.attempts || 0) + 1,
+    updatedAt: new Date().toISOString(),
+  }
+  if (existingIndex >= 0) {
+    all[existingIndex] = record
+  } else {
+    all.push(record)
+  }
+  writeLS(LS_KEYS.questionAttempts, all)
+}
+
+export async function getQuestionAttemptsForStudent(studentId) {
+  if (isSupabaseConfigured) {
+    const { data, error } = await supabase
+      .from('question_attempts')
+      .select('*')
+      .eq('student_id', studentId)
+    if (error) throw error
+    return data.map((row) => ({
+      studentId: row.student_id,
+      lessonId: row.lesson_id,
+      questionId: row.question_id,
+      points: row.points,
+      correct: row.correct,
+      attempts: row.attempts,
+    }))
+  }
+  const all = readLS(LS_KEYS.questionAttempts, [])
+  return all.filter((a) => a.studentId === studentId)
+}
+
+export async function getQuestionAttemptsForRoster(studentIds) {
+  if (studentIds.length === 0) return []
+  if (isSupabaseConfigured) {
+    const { data, error } = await supabase
+      .from('question_attempts')
+      .select('*')
+      .in('student_id', studentIds)
+    if (error) throw error
+    return data.map((row) => ({
+      studentId: row.student_id,
+      lessonId: row.lesson_id,
+      questionId: row.question_id,
+      points: row.points,
+      correct: row.correct,
+      attempts: row.attempts,
+    }))
+  }
+  const all = readLS(LS_KEYS.questionAttempts, [])
+  return all.filter((a) => studentIds.includes(a.studentId))
 }
