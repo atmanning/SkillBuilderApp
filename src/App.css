@@ -222,3 +222,80 @@ td {
   padding: 3rem;
   color: var(--color-muted);
 }
+
+.page-wide {
+  max-width: 1100px;
+}
+
+.sandbox-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tab,
+.tab-active {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.tab-active {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+}
+
+.sandbox-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.sandbox-nav h3 {
+  margin-top: 0;
+}
+
+.tier-label {
+  text-transform: capitalize;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  margin: 1rem 0 0.3rem;
+}
+
+.sandbox-nav a.nav-active {
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.sql-editor {
+  width: 100%;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.92rem;
+  padding: 0.8rem;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  resize: vertical;
+}
+
+.sandbox-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0.8rem 0;
+  flex-wrap: wrap;
+}
+
+.result-table-wrap {
+  overflow-x: auto;
+}
+
+@media (max-width: 700px) {
+  .sandbox-layout {
+    grid-template-columns: 1fr;
+  }
+}

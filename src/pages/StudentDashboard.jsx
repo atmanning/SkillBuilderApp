@@ -65,6 +65,18 @@ export default function StudentDashboard() {
           </ul>
         </section>
       ))}
+
+      <section className="card">
+        <h2>Practice sandbox</h2>
+        <p className="muted">
+          Write and run real SQL queries against a sample Northwind database, right in
+          your browser -- no setup required. Each challenge checks your query's results
+          automatically.
+        </p>
+        <Link to="/sandbox">
+          <button>Open the sandbox</button>
+        </Link>
+      </section>
     </div>
   )
 }

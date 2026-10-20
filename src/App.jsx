@@ -10,6 +10,8 @@ import StudentDashboard from './pages/StudentDashboard'
 import TestBankPage from './pages/TestBankPage'
 import AssessmentPage from './pages/AssessmentPage'
 import LessonPage from './pages/LessonPage'
+import SandboxPage from './pages/SandboxPage'
+import MysqlSetupPage from './pages/MysqlSetupPage'
 
 function Home() {
   const { user, loading } = useAuth()
@@ -43,6 +45,14 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/teacher/mysql-setup"
+            element={
+              <ProtectedRoute role="teacher">
+                <MysqlSetupPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/student"
@@ -65,6 +75,22 @@ export default function App() {
             element={
               <ProtectedRoute role="student">
                 <LessonPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sandbox/:challengeId"
+            element={
+              <ProtectedRoute role="student">
+                <SandboxPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sandbox"
+            element={
+              <ProtectedRoute role="student">
+                <SandboxPage />
               </ProtectedRoute>
             }
           />

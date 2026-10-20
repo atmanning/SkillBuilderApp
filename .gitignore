@@ -11,6 +11,11 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+
+# Copied at install time by scripts/copy-sqljs-wasm.mjs (see postinstall) --
+# not committed since it's a direct copy of a file already in node_modules.
+public/sql-wasm.wasm
 
 # Editor directories and files
 .vscode/*

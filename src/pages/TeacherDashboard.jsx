@@ -116,6 +116,18 @@ export default function TeacherDashboard() {
           ))}
         </ul>
       </section>
+
+      <section className="card">
+        <h2>Practice sandbox</h2>
+        <p className="muted">
+          Students practice writing real SQL against a Northwind database. By default
+          this runs entirely in their browser (SQLite, no setup). You can optionally
+          connect it to a live MySQL server instead.
+        </p>
+        <Link to="/teacher/mysql-setup">
+          <button>Configure live MySQL server</button>
+        </Link>
+      </section>
     </div>
   )
 }
